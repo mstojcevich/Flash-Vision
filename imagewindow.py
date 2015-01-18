@@ -46,7 +46,7 @@ class ImageWindow(QtGui.QMainWindow):
         self.obj = obj
 
         # Set properties of the window
-        self.setFixedSize(475, 500)
+        self.setFixedSize(self.width(), self.height())
         self.setWindowTitle('Vision Preview')
 
         # Connect all of the sliders to their onSet methods
@@ -69,17 +69,22 @@ class ImageWindow(QtGui.QMainWindow):
         self.raw_image_label = self.findChild(QtGui.QLabel, 'rawImage')
         self.processed_image_label = self.findChild(QtGui.QLabel, 'processedImage')
 
+        self.ip_addr_box = self.findChild(QtGui.QLineEdit, 'ipTextBox')
+
         self.logo = self.findChild(QtGui.QLabel, 'lightningLogo')
         logo_pixmap = QtGui.QPixmap('res/img/logo.png')
         self.logo.setPixmap(logo_pixmap)
 
-        self.get_new_raw()
+        try:
+            self.get_new_raw()
+        except socket.gaierror:
+            QtGui.QMessageBox.warning(self, 'Connection error', 'No server running on default IP')
 
         self.show()
 
     def get_new_raw(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(('localhost', 8621))  # TODO allow user-defined port and hostname
+        s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port and hostname
         s.send('GETIMG')  # We want a raw image from the camera
         length = receive_all(s, 16)
         img_received = receive_all(s, int(length))
@@ -126,3 +131,10 @@ class ImageWindow(QtGui.QMainWindow):
     def max_val_changed(self, value):
         self.config.max_val = value
         self.process_image()
+
+    def get_ip_addr(self):
+        default_ip = 'localhost'
+        ip = str(self.ip_addr_box.text()).strip()
+        if ' ' in ip or len(ip) is 0:  # If a space is in the input or the input is blank
+            return default_ip
+        return ip

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>475</width>
-    <height>500</height>
+    <width>461</width>
+    <height>499</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -279,23 +279,19 @@
      <string>LIGHTNING LOGO</string>
     </property>
    </widget>
-  </widget>
-  <widget class="QMenuBar" name="menuBar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>475</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <widget class="QMenu" name="menuWindows">
-    <property name="title">
-     <string>File</string>
+   <widget class="QLineEdit" name="ipTextBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>470</y>
+      <width>441</width>
+      <height>22</height>
+     </rect>
     </property>
-    <addaction name="actionValues"/>
+    <property name="placeholderText">
+     <string>IP Address</string>
+    </property>
    </widget>
-   <addaction name="menuWindows"/>
   </widget>
   <action name="actionValues">
    <property name="checkable">
