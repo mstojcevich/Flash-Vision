@@ -1,5 +1,6 @@
 from SimpleCV import *
 import numpy
+import cv2
 
 
 def process_image(obj, img, config):
@@ -24,11 +25,11 @@ def process_image(obj, img, config):
                 rect_height = b.minRectHeight()
                 # Yes, I know this is backwards. No, I don't know why, but it works.
                 # TODO this might actually be wrong now that I changed it from numpycv2
-                aspect_ratio = rect_height / rect_width
+                aspect_ratio = rect_width / rect_height
                 square_error = abs(obj.aspect_ratio - aspect_ratio) / abs(aspect_ratio)
                 if square_error < 0.1:
-                    segmented.drawRectangle(b.minRectX() - rect_width / 2, b.minRectY() + rect_height / 2, rect_width,
-                                            -rect_height, color=Color.GREEN, width=3)
+                    segmented.drawRectangle(b.minRectX()-rect_width/2, b.minRectY()-rect_height/2, rect_width,
+                                            rect_height, color=Color.GREEN, width=6)
 
     # Give the result mask
-    return segmented
+    return segmented.applyLayers()
