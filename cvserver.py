@@ -7,6 +7,7 @@ import sys
 import os
 import time
 import imgproc
+import json
 from config import Config
 from object import Obj
 from threading import Thread
@@ -33,7 +34,7 @@ class ImgProcThread(Thread):
 
     def run(self):
         def on_blob(b):
-            print("Found blob centered at (%s,%s)" % b.minRectX(), b.minRectY())
+            print("Found blob centered at (%s,%s)" % (int(b.minRectX()), int(b.minRectY())))
         while True:
             input_img = self.camera.getImage()
             processed_img = imgproc.process_image(self.obj, input_img, self.config, on_blob)
@@ -77,6 +78,21 @@ class ServerThread(Thread):
                 connection.send(str(len(img_str)).ljust(16))
                 # Send the image itself
                 connection.send(img_str)
+            elif data == "NEWCONFIG":  # They're sending us a new config to use
+                connection.send('READY')
+                newconf_data = connection.recv(1024)
+                newconf = json.loads(newconf_data)
+
+                # Set values to the new ones we just got
+                conf.min_val = newconf.get('min_val')
+                conf.max_val = newconf.get('max_val')
+                conf.min_sat = newconf.get('min_sat')
+                conf.max_sat = newconf.get('max_sat')
+                conf.min_hue = newconf.get('min_hue')
+                conf.max_hue = newconf.get('max_hue')
+                # TODO save changes to file
+                connection.send('SUCCESS')  # We successfully processed the new config
+                print('Got a new config')
 
 c = Camera()
 conf = Config()  # TODO load config from file

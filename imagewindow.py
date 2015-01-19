@@ -2,6 +2,7 @@ from PyQt4 import QtCore, QtGui, uic
 from SimpleCV import *
 import numpy
 import cv2
+import json
 
 import imgproc
 
@@ -64,12 +65,9 @@ class ImageWindow(QtGui.QMainWindow):
         self.connect(max_val_slider, QtCore.SIGNAL("valueChanged(int)"), self.max_val_changed)
 
         self.get_image_button = self.findChild(QtGui.QPushButton, 'grabImageBtn')
-        def on_button_click():
-            try:
-                self.get_new_raw()
-            except socket.error:
-                QtGui.QMessageBox.warning(self, 'Connection error', 'No server running on defined IP')
-        self.get_image_button.clicked.connect(on_button_click)
+        self.get_image_button.clicked.connect(self.on_grab_img)
+        self.send_config_button = self.findChild(QtGui.QPushButton, 'sendConfigBtn')
+        self.send_config_button.clicked.connect(self.on_send_config)
 
         self.raw_image_label = self.findChild(QtGui.QLabel, 'rawImage')
         self.processed_image_label = self.findChild(QtGui.QLabel, 'processedImage')
@@ -136,6 +134,30 @@ class ImageWindow(QtGui.QMainWindow):
     def max_val_changed(self, value):
         self.config.max_val = value
         self.process_image()
+
+    def on_grab_img(self):
+        try:
+            self.get_new_raw()
+        except socket.error:
+            QtGui.QMessageBox.warning(self, 'Connection error', 'No server running on defined IP')
+
+    def on_send_config(self):
+        class ConfigEncoder(json.JSONEncoder):
+            def default(self, o):
+                return o.__dict__
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
+            s.send('NEWCONFIG')  # We want to send a config
+            s.recv(42)  # Enough to fit "READY"
+            s.send(ConfigEncoder().encode(self.config))  # Send a json representation of our config
+            response = s.recv(45)  # Enough to fit "SUCCESS" and "FAIL"
+            if response == "SUCCESS":
+                QtGui.QMessageBox.information(self, 'Config sent', 'Successfully sent config to server')
+            else:
+                QtGui.QMessageBox.warning(self, 'Error', 'Problem sending config')
+        except socket.error:
+            QtGui.QMessageBox.warning(self, 'Connection error', 'No server running on defined IP')
 
     def get_ip_addr(self):
         default_ip = 'localhost'
