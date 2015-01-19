@@ -64,7 +64,12 @@ class ImageWindow(QtGui.QMainWindow):
         self.connect(max_val_slider, QtCore.SIGNAL("valueChanged(int)"), self.max_val_changed)
 
         self.get_image_button = self.findChild(QtGui.QPushButton, 'grabImageBtn')
-        self.get_image_button.clicked.connect(self.get_new_raw)
+        def on_button_click():
+            try:
+                self.get_new_raw()
+            except socket.error:
+                QtGui.QMessageBox.warning(self, 'Connection error', 'No server running on defined IP')
+        self.get_image_button.clicked.connect(on_button_click)
 
         self.raw_image_label = self.findChild(QtGui.QLabel, 'rawImage')
         self.processed_image_label = self.findChild(QtGui.QLabel, 'processedImage')
