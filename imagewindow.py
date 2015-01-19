@@ -77,14 +77,14 @@ class ImageWindow(QtGui.QMainWindow):
 
         try:
             self.get_new_raw()
-        except socket.gaierror:
+        except socket.error:
             QtGui.QMessageBox.warning(self, 'Connection error', 'No server running on default IP')
 
         self.show()
 
     def get_new_raw(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port and hostname
+        s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
         s.send('GETIMG')  # We want a raw image from the camera
         length = receive_all(s, 16)
         img_received = receive_all(s, int(length))
