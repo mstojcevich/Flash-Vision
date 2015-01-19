@@ -3,12 +3,13 @@ import numpy
 import cv2
 
 
-def process_image(obj, img, config):
+def process_image(obj, img, config, each_blob=None):
     """
     :param obj: Object we're tracking
     :param img: Input image
     :param config: Controls
-    :return: Mask with candidates surrounded in a green rectangle
+    :param each_blob: function, taking a SimpleCV.Blob as an argument, that is called for every candidate blob
+    :return: Mask with candidates
     """
     hsv_image = img.toHSV()
     segmented = Image(cv2.inRange(hsv_image.getNumpy(),
@@ -25,9 +26,12 @@ def process_image(obj, img, config):
                 aspect_ratio = rect_width / rect_height
                 square_error = abs(obj.aspect_ratio - aspect_ratio) / abs(aspect_ratio)
                 if square_error < 0.1:
-                    # minRectX and minRectY actually give the center point, not the minX and minY, so we shift by 1/2
-                    segmented.drawRectangle(b.minRectX()-rect_width/2, b.minRectY()-rect_height/2, rect_width,
+                    if not each_blob:  # default to just outlining
+                        # minRectX and minRectY actually give the center point, not the minX and minY, so we shift by 1/2
+                        segmented.drawRectangle(b.minRectX()-rect_width/2, b.minRectY()-rect_height/2, rect_width,
                                             rect_height, color=Color.GREEN, width=6)
+                    else:
+                        each_blob(b)
 
     # Give the result mask
     return segmented.applyLayers()
