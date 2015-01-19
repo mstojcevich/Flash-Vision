@@ -53,46 +53,55 @@ class ServerThread(Thread):
         print('Listening on port %s' % port)
         while True:
             connection, address = server_socket.accept()
-            data = connection.recv(1024)
-            print('Got some data:')
-            print(data)
-            print("Data over.")
-            if data == 'GETIMG':  # They want a raw image
-                try:
-                    if camera_connected():
-                        # give them the current camera image
-                        img = c.getImage()
-                    else:  # Looks like the camera disconnected randomly
+            try:  # Don't let any bad things that happen with one connection cause the whole server to crash
+                data = connection.recv(1024)
+                print('Got some data:')
+                print(data)
+                print("Data over.")
+                if data == 'GETIMG':  # They want a raw image
+                    try:
+                        if camera_connected():
+                            # give them the current camera image
+                            img = c.getImage()
+                        else:  # Looks like the camera disconnected randomly
+                            img = Image("res/img/connect_failed.png")
+                    except AttributeError:  # Occurs when the camera was never connected in the first place
                         img = Image("res/img/connect_failed.png")
-                except AttributeError:  # Occurs when the camera was never connected in the first place
-                    img = Image("res/img/connect_failed.png")
 
-                # Encode as JPEG so we don't have to send so much
-                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
-                result, encoded_img = cv2.imencode('.jpg', img.getNumpy(), encode_param)
+                    # Encode as JPEG so we don't have to send so much
+                    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                    result, encoded_img = cv2.imencode('.jpg', img.getNumpy(), encode_param)
 
-                img_numpy = numpy.array(encoded_img)
-                img_str = img_numpy.tostring()
+                    img_numpy = numpy.array(encoded_img)
+                    img_str = img_numpy.tostring()
 
-                # Send the size of the image, so that the client can handle if we have to send it in multiple parts
-                connection.send(str(len(img_str)).ljust(16))
-                # Send the image itself
-                connection.send(img_str)
-            elif data == "NEWCONFIG":  # They're sending us a new config to use
-                connection.send('READY')
-                newconf_data = connection.recv(1024)
-                newconf = json.loads(newconf_data)
+                    # Send the size of the image, so that the client can handle if we have to send it in multiple parts
+                    connection.send(str(len(img_str)).ljust(16))
+                    # Send the image itself
+                    connection.send(img_str)
+                elif data == "NEWCONFIG":  # They're sending us a new config to use
+                    connection.send('READY')
+                    newconf_data = connection.recv(1024)
+                    newconf = json.loads(newconf_data)
 
-                # Set values to the new ones we just got
-                conf.min_val = newconf.get('min_val')
-                conf.max_val = newconf.get('max_val')
-                conf.min_sat = newconf.get('min_sat')
-                conf.max_sat = newconf.get('max_sat')
-                conf.min_hue = newconf.get('min_hue')
-                conf.max_hue = newconf.get('max_hue')
-                # TODO save changes to file
-                connection.send('SUCCESS')  # We successfully processed the new config
-                print('Got a new config')
+                    # Set values to the new ones we just got
+                    conf.min_val = newconf.get('min_val')
+                    conf.max_val = newconf.get('max_val')
+                    conf.min_sat = newconf.get('min_sat')
+                    conf.max_sat = newconf.get('max_sat')
+                    conf.min_hue = newconf.get('min_hue')
+                    conf.max_hue = newconf.get('max_hue')
+                    # TODO save changes to file
+                    connection.send('SUCCESS')  # We successfully processed the new config
+                    print('Got a new config')
+                elif data == "GETCONFIG":
+                    class ConfigEncoder(json.JSONEncoder):
+                        def default(self, o):
+                            return o.__dict__
+                    connection.send(ConfigEncoder().encode(conf))  # Send a json representation of our config
+            except Exception as ex:
+                print(ex.message)
+                connection.close()
 
 c = Camera()
 conf = Config()  # TODO load config from file

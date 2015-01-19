@@ -51,23 +51,25 @@ class ImageWindow(QtGui.QMainWindow):
         self.setWindowTitle('Vision Preview')
 
         # Connect all of the sliders to their onSet methods
-        min_hue_slider = self.findChild(QtGui.QSlider, 'minHueSlider')
-        self.connect(min_hue_slider, QtCore.SIGNAL("valueChanged(int)"), self.min_hue_changed)
-        max_hue_slider = self.findChild(QtGui.QSlider, 'maxHueSlider')
-        self.connect(max_hue_slider, QtCore.SIGNAL("valueChanged(int)"), self.max_hue_changed)
-        min_sat_slider = self.findChild(QtGui.QSlider, 'minSatSlider')
-        self.connect(min_sat_slider, QtCore.SIGNAL("valueChanged(int)"), self.min_sat_changed)
-        max_sat_slider = self.findChild(QtGui.QSlider, 'maxSatSlider')
-        self.connect(max_sat_slider, QtCore.SIGNAL("valueChanged(int)"), self.max_sat_changed)
-        min_val_slider = self.findChild(QtGui.QSlider, 'minValSlider')
-        self.connect(min_val_slider, QtCore.SIGNAL("valueChanged(int)"), self.min_val_changed)
-        max_val_slider = self.findChild(QtGui.QSlider, 'maxValSlider')
-        self.connect(max_val_slider, QtCore.SIGNAL("valueChanged(int)"), self.max_val_changed)
+        self.min_hue_slider = self.findChild(QtGui.QSlider, 'minHueSlider')
+        self.connect(self.min_hue_slider, QtCore.SIGNAL("valueChanged(int)"), self.min_hue_changed)
+        self.max_hue_slider = self.findChild(QtGui.QSlider, 'maxHueSlider')
+        self.connect(self.max_hue_slider, QtCore.SIGNAL("valueChanged(int)"), self.max_hue_changed)
+        self.min_sat_slider = self.findChild(QtGui.QSlider, 'minSatSlider')
+        self.connect(self.min_sat_slider, QtCore.SIGNAL("valueChanged(int)"), self.min_sat_changed)
+        self.max_sat_slider = self.findChild(QtGui.QSlider, 'maxSatSlider')
+        self.connect(self.max_sat_slider, QtCore.SIGNAL("valueChanged(int)"), self.max_sat_changed)
+        self.min_val_slider = self.findChild(QtGui.QSlider, 'minValSlider')
+        self.connect(self.min_val_slider, QtCore.SIGNAL("valueChanged(int)"), self.min_val_changed)
+        self.max_val_slider = self.findChild(QtGui.QSlider, 'maxValSlider')
+        self.connect(self.max_val_slider, QtCore.SIGNAL("valueChanged(int)"), self.max_val_changed)
 
         self.get_image_button = self.findChild(QtGui.QPushButton, 'grabImageBtn')
-        self.get_image_button.clicked.connect(self.on_grab_img)
+        self.get_image_button.clicked.connect(self.grab_img)
         self.send_config_button = self.findChild(QtGui.QPushButton, 'sendConfigBtn')
-        self.send_config_button.clicked.connect(self.on_send_config)
+        self.send_config_button.clicked.connect(self.send_config)
+        self.grab_config_button = self.findChild(QtGui.QPushButton, 'grabConfigBtn')
+        self.grab_config_button.clicked.connect(self.grab_config)
 
         self.raw_image_label = self.findChild(QtGui.QLabel, 'rawImage')
         self.processed_image_label = self.findChild(QtGui.QLabel, 'processedImage')
@@ -135,13 +137,13 @@ class ImageWindow(QtGui.QMainWindow):
         self.config.max_val = value
         self.process_image()
 
-    def on_grab_img(self):
+    def grab_img(self):
         try:
             self.get_new_raw()
         except socket.error:
             QtGui.QMessageBox.warning(self, 'Connection error', 'No server running on defined IP')
 
-    def on_send_config(self):
+    def send_config(self):
         class ConfigEncoder(json.JSONEncoder):
             def default(self, o):
                 return o.__dict__
@@ -159,9 +161,39 @@ class ImageWindow(QtGui.QMainWindow):
         except socket.error:
             QtGui.QMessageBox.warning(self, 'Connection error', 'No server running on defined IP')
 
+    def grab_config(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
+        s.send('GETCONFIG')  # We want to get a config
+        newconf_data = s.recv(1024)
+        print(newconf_data)
+        newconf = json.loads(newconf_data)
+        # Set config values
+        self.config.min_val = newconf.get('min_val')
+        self.config.max_val = newconf.get('max_val')
+        self.config.min_sat = newconf.get('min_sat')
+        self.config.max_sat = newconf.get('max_sat')
+        self.config.min_hue = newconf.get('min_hue')
+        self.config.max_hue = newconf.get('max_hue')
+        # We changed config values manually, so let's update the sliders
+        self.update_sliders()
+        # Do processing with the new values we got
+        self.process_image()
+
     def get_ip_addr(self):
         default_ip = 'localhost'
         ip = str(self.ip_addr_box.text()).strip()
         if ' ' in ip or len(ip) is 0:  # If a space is in the input or the input is blank
             return default_ip
         return ip
+
+    def update_sliders(self):
+        """
+        Update the sliders to the current config values
+        """
+        self.min_hue_slider.setValue(self.config.min_hue)
+        self.max_hue_slider.setValue(self.config.max_hue)
+        self.min_sat_slider.setValue(self.config.min_sat)
+        self.max_sat_slider.setValue(self.config.max_sat)
+        self.min_val_slider.setValue(self.config.min_val)
+        self.max_val_slider.setValue(self.config.max_val)
