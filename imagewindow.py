@@ -166,7 +166,6 @@ class ImageWindow(QtGui.QMainWindow):
         s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
         s.send('GETCONFIG')  # We want to get a config
         newconf_data = s.recv(1024)
-        print(newconf_data)
         newconf = json.loads(newconf_data)
         # Set config values
         self.config.min_val = newconf.get('min_val')
