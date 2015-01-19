@@ -23,8 +23,6 @@ def process_image(obj, img, config):
             if b.radius() > 10:
                 rect_width = b.minRectWidth()
                 rect_height = b.minRectHeight()
-                # Yes, I know this is backwards. No, I don't know why, but it works.
-                # TODO this might actually be wrong now that I changed it from numpycv2
                 aspect_ratio = rect_width / rect_height
                 square_error = abs(obj.aspect_ratio - aspect_ratio) / abs(aspect_ratio)
                 if square_error < 0.1:
