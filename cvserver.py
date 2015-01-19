@@ -17,6 +17,7 @@ import threading
 # TODO maybe this doesn't have to return true always on OSX, but I doubt we'll ever have an OSX machine running this.
 def camera_connected():
     if sys.platform == 'linux' or sys.platform == 'linux2':
+        # TODO, look for any /dev/video since the camera doesn't have to be video0
         return os.path.exists('/dev/video0')  # The system sees a camera
     else:
         return True
