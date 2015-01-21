@@ -5,6 +5,7 @@ import cv2
 import json
 
 import imgproc
+import camprop
 
 
 def receive_all(sock, count):
@@ -87,6 +88,8 @@ class ImageWindow(QtGui.QMainWindow):
 
         self.show()
 
+        self.cam_props = self.setup_cam_prop_win()
+
     def get_new_raw(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
@@ -154,6 +157,7 @@ class ImageWindow(QtGui.QMainWindow):
             s.recv(42)  # Enough to fit "READY"
             s.send(ConfigEncoder().encode(self.config))  # Send a json representation of our config
             response = s.recv(45)  # Enough to fit "SUCCESS" and "FAIL"
+            s.close()
             if response == "SUCCESS":
                 QtGui.QMessageBox.information(self, 'Config sent', 'Successfully sent config to server')
             else:
@@ -166,6 +170,7 @@ class ImageWindow(QtGui.QMainWindow):
         s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
         s.send('GETCONFIG')  # We want to get a config
         newconf_data = s.recv(1024)
+        s.close()
         newconf = json.loads(newconf_data)
         # Set config values
         self.config.min_val = newconf.get('min_val')
@@ -196,3 +201,61 @@ class ImageWindow(QtGui.QMainWindow):
         self.max_sat_slider.setValue(self.config.max_sat)
         self.min_val_slider.setValue(self.config.min_val)
         self.max_val_slider.setValue(self.config.max_val)
+
+    def setup_cam_prop_win(self):
+        prop_win = QtGui.QDialog(self)
+        grid = QtGui.QVBoxLayout()
+        prop_win.setLayout(grid)
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
+        s.send('GETCAMPROPS')  # We want to get a config
+        length = int(s.recv(16))
+        camprop_data = receive_all(s, length)
+        s.close()
+
+        int_prop_list = camprop.parse_int_props(camprop_data)
+        cam_prop_num = 0
+        sheight = 0
+        for prop in int_prop_list:
+            slider = QtGui.QSlider(parent=prop_win, orientation=QtCore.Qt.Horizontal)
+            def update_value(value):
+                prop.new_value = value
+            prop_win.connect(slider, QtCore.SIGNAL("valueChanged(int)"), update_value)
+            slider.setMinimum(prop.min)
+            slider.setMaximum(prop.max)
+            slider.setSingleStep(prop.step)
+            slider.setValue(prop.value)
+            slider.setToolTip(prop.name)
+            y = cam_prop_num*(slider.height()-10)
+            slider.move(0, y)
+            cam_prop_num += 1
+            label = QtGui.QLabel(parent=prop_win)
+            label.setText(prop.name)
+            label.move(slider.width(), y)
+            sheight = slider.height()
+        y = cam_prop_num*(sheight-10)
+        btn = QtGui.QPushButton(prop_win)
+        btn.setText('Send')
+        btn.clicked.connect(self.send_changed_props)
+        btn.move(0, y)
+
+        prop_win.setWindowTitle('Camera Properties')
+        prop_win.show()
+
+        return int_prop_list
+
+    def send_changed_props(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
+        s.send("STARTV4LPROPS")
+        time.sleep(1)  # Sleep for 1 second so that it gets out start message
+        for prop in self.cam_props:
+            if prop.value != prop.new_value:
+                upstr = 'UPDATEV4L %s %s' % (prop.name, prop.value)
+                s.send(str(len(upstr)).ljust(16))  # Send the length, we do this so we can discriminate between multiple values sent in quick intervals
+                s.send(upstr)  # Send the command
+                prop.value = prop.new_value  # Set the value to the new value so that we don't send the same change again
+        s.send(str(len("ENDV4LPROPS")).ljust(16))
+        s.send("ENDV4LPROPS")
+        s.close()

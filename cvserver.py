@@ -12,6 +12,7 @@ from config import Config
 from object import Obj
 from threading import Thread
 import threading
+import subprocess
 
 cam_id = 1
 
@@ -53,6 +54,7 @@ class ServerThread(Thread):
         server_socket.bind(('localhost', port))
         server_socket.listen(1)  # max 1 connection - we only have one camera, so we can't send images to two people at once
         print('Listening on port %s' % port)
+        connection = None
         while True:
             connection, address = server_socket.accept()
             try:  # Don't let any bad things that happen with one connection cause the whole server to crash
@@ -101,9 +103,32 @@ class ServerThread(Thread):
                         def default(self, o):
                             return o.__dict__
                     connection.send(ConfigEncoder().encode(conf))  # Send a json representation of our config
+                elif data == "GETCAMPROPS":
+                    proc = subprocess.Popen(['v4l2-ctl', '--list-ctrls', '--device=/dev/video%s' % cam_id],
+                                            stdout=subprocess.PIPE)
+                    out, err = proc.communicate()
+                    connection.send(str(len(out)).ljust(16))
+                    connection.send(out)
+                elif data == "STARTV4LPROPS":
+                    while True:
+                        length = int(connection.recv(16))
+                        dta = connection.recv(length)
+                        if dta is None or dta == "ENDV4LPROPS" or not dta.startswith('UPDATEV4L'):
+                            break
+                        else:
+                            words = dta.split(' ')
+                            val_name = words[1].strip()
+                            val_value = int(words[2].strip())
+                            proc = subprocess.Popen(['v4l2-ctl', '--device=/dev/video%s' % cam_id, '--set-ctrl',
+                                                     '%s=%s' % (val_name, val_value)],
+                                                    stdout=subprocess.PIPE)
+                            # TODO see if the command is good
+                            proc.communicate()
+
             except Exception as ex:
                 print(ex.message)
                 connection.close()
+        connection.close()
 
 c = Camera(camera_index=cam_id)
 conf = Config()  # TODO load config from file
