@@ -28,8 +28,14 @@ def process_image(obj, img, config, each_blob=None):
                 if square_error < 0.1:
                     if not each_blob:  # default to just outlining
                         # minRectX and minRectY actually give the center point, not the minX and minY, so we shift by 1/2
-                        segmented.drawRectangle(b.minRectX()-rect_width/2, b.minRectY()-rect_height/2, rect_width,
+                        rect_ctr_x = b.minRectX()
+                        mrX = rect_ctr_x-rect_width/2
+                        mrY = b.minRectY()-rect_height/2
+                        segmented.drawRectangle(mrX, mrY, rect_width,
                                                 rect_height, color=Color.GREEN, width=6)
+                        # px * (px/cm) = cm
+                        offset = int(round((rect_ctr_x - segmented.width/2) * (obj.width / rect_width)))
+                        segmented.drawText('Offset %s cm' % offset, mrX, mrY, Color.RED, 64)
                     else:
                         each_blob(b)
 

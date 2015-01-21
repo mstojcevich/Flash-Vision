@@ -13,13 +13,15 @@ from object import Obj
 from threading import Thread
 import threading
 
+cam_id = 1
+
 
 # Really hacky way to detect if the camera is connected. Always returns true on Windows and OSX.
 # TODO maybe this doesn't have to return true always on OSX, but I doubt we'll ever have an OSX machine running this.
 def camera_connected():
     if sys.platform == 'linux' or sys.platform == 'linux2':
         # TODO, look for any /dev/video since the camera doesn't have to be video0
-        return os.path.exists('/dev/video0')  # The system sees a camera
+        return os.path.exists('/dev/video%s' % cam_id)  # The system sees a camera
     else:
         return True
 
@@ -103,7 +105,7 @@ class ServerThread(Thread):
                 print(ex.message)
                 connection.close()
 
-c = Camera()
+c = Camera(camera_index=cam_id)
 conf = Config()  # TODO load config from file
 obj = Obj(38.1, 30.48)  # Values are measured from the yellow tote, TODO load from config file
 
