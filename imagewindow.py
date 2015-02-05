@@ -218,27 +218,33 @@ class ImageWindow(QtGui.QMainWindow):
         cam_prop_num = 0
         sheight = 0
         for prop in int_prop_list:
-            slider = QtGui.QSlider(parent=prop_win, orientation=QtCore.Qt.Horizontal)
+            slider = QtGui.QSlider(orientation=QtCore.Qt.Horizontal)
             def update_value(value):
-                prop.new_value = value
+                for p in int_prop_list:
+                    if p.name == self.sender().objectName():
+                        p.new_value = value
             prop_win.connect(slider, QtCore.SIGNAL("valueChanged(int)"), update_value)
             slider.setMinimum(prop.min)
             slider.setMaximum(prop.max)
             slider.setSingleStep(prop.step)
             slider.setValue(prop.value)
             slider.setToolTip(prop.name)
+            slider.setObjectName(prop.name)
             y = cam_prop_num*(slider.height()-10)
             slider.move(0, y)
             cam_prop_num += 1
-            label = QtGui.QLabel(parent=prop_win)
+            label = QtGui.QLabel()
             label.setText(prop.name)
             label.move(slider.width(), y)
             sheight = slider.height()
+            grid.addWidget(label)
+            grid.addWidget(slider)
         y = cam_prop_num*(sheight-10)
-        btn = QtGui.QPushButton(prop_win)
+        btn = QtGui.QPushButton(parent=prop_win)
         btn.setText('Send')
         btn.clicked.connect(self.send_changed_props)
         btn.move(0, y)
+        grid.addWidget(btn)
 
         prop_win.setWindowTitle('Camera Properties')
         prop_win.show()
@@ -252,7 +258,7 @@ class ImageWindow(QtGui.QMainWindow):
         time.sleep(1)  # Sleep for 1 second so that it gets out start message
         for prop in self.cam_props:
             if prop.value != prop.new_value:
-                upstr = 'UPDATEV4L %s %s' % (prop.name, prop.value)
+                upstr = 'UPDATEV4L %s %s' % (prop.name, prop.new_value)
                 s.send(str(len(upstr)).ljust(16))  # Send the length, we do this so we can discriminate between multiple values sent in quick intervals
                 s.send(upstr)  # Send the command
                 prop.value = prop.new_value  # Set the value to the new value so that we don't send the same change again

@@ -14,7 +14,10 @@ from threading import Thread
 import threading
 import subprocess
 
-cam_id = 1
+cam_id = 0
+
+x_offset = -1
+y_offset = -1
 
 
 # Really hacky way to detect if the camera is connected. Always returns true on Windows and OSX.
@@ -36,11 +39,46 @@ class ImgProcThread(Thread):
         self.config = config
 
     def run(self):
-        def on_blob(b):
-            print("Found blob centered at (%s,%s)" % (int(b.minRectX()), int(b.minRectY())))
+        not_found_count = 0
+        max_not_found = 3
         while True:
             input_img = self.camera.getImage()
+            found = False
+            def on_blob(b):
+                rect_width = b.minRectWidth()
+                rect_height = b.minRectHeight()
+
+                rect_ctr_x = b.minRectX()
+
+                mrX = rect_ctr_x-rect_width/2
+                mrY = b.minRectY()-rect_height/2
+                # px * (px/cm) = cm
+                x_offset = int(round((rect_ctr_x - input_img.width/2) * (obj.width / rect_width)))
+                found = True
+                not_found_count = 0
+
+                try:
+                    to_send = "x=-1;y=%d;" % x_offset  # x is not yet implemented
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.connect(('169.254.65.94', 8622))
+                    s.send(str(len(to_send)).ljust(16))
+                    s.send(to_send)
+                    s.close()
+                except socket.error:
+                    pass
+            if not found:
+                not_found_count += 1
+            if not_found_count >= max_not_found:
+                # It's been missing for a bit now, let's send some arbitrary negative numbers!
+                to_send = "x=-10;y=-10"
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.connect(('169.254.65.94', 8622))
+                s.send(str(len(to_send)).ljust(16))
+                s.send(to_send)
+                s.close()
+
             processed_img = imgproc.process_image(self.obj, input_img, self.config, on_blob)
+            time.sleep(0.5)
 
 
 class ServerThread(Thread):
@@ -119,8 +157,10 @@ class ServerThread(Thread):
                             words = dta.split(' ')
                             val_name = words[1].strip()
                             val_value = int(words[2].strip())
-                            proc = subprocess.Popen(['v4l2-ctl', '--device=/dev/video%s' % cam_id, '--set-ctrl',
-                                                     '%s=%s' % (val_name, val_value)],
+                            print(val_name)
+                            print(val_value)
+                            proc = subprocess.Popen(['v4l2-ctl', "--device=/dev/video%s" % cam_id, '-c',
+                                                     "%s=%s" % (val_name, val_value)],
                                                     stdout=subprocess.PIPE)
                             # TODO see if the command is good
                             proc.communicate()
@@ -133,6 +173,13 @@ class ServerThread(Thread):
 c = Camera(camera_index=cam_id)
 conf = Config()  # TODO load config from file
 obj = Obj(38.1, 30.48)  # Values are measured from the yellow tote, TODO load from config file
+
+
+# TODO this is very likely camera specific!!!
+# Disable auto exposure on the rocketfish camera
+proc = subprocess.Popen(['v4l2-ctl', '-d', '/dev/video%s' % cam_id, '-c', 'exposure_auto=1'],
+                        stdout=subprocess.PIPE)
+out, err = proc.communicate()
 
 # Create and spawn the processing thread
 procThread = ImgProcThread(c, obj, conf)
