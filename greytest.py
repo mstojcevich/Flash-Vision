@@ -37,14 +37,14 @@ def getFLANNMatches(sd, td, mode):
     return idx, dist
 
 
-def matchKeyPoints(image, template, quality=100):
+def matchKeyPoints(image, template, quality=0.00005):
     mode = "SURF"
     if not hasattr(cv2, "FeatureDetector_create"):
         warnings.warn("OpenCV >= 2.4.3 required")
         return None
     if template == None:
         return None
-    detector = cv2.ORB(1000)
+    detector = cv2.SURF(1500, upright=True)  # First number bigger = more picky
     img = image.getNumpyCv2()
     template_img = template.getNumpyCv2()
 
@@ -52,7 +52,9 @@ def matchKeyPoints(image, template, quality=100):
 
     tkp, td = detector.detectAndCompute(template_img, None)
 
-    idx, dist = getFLANNMatches(sd, td, "ORB")
+    if skp is None or tkp is None or sd is None or td is None:
+        return None
+    idx, dist = getFLANNMatches(sd, td, mode)
     dist = dist[:, 0] / 2500.0
     dist = dist.reshape(-1, ).tolist()
     idx = idx.reshape(-1).tolist()
@@ -75,34 +77,34 @@ def main():
 
     targetWidth = 640
 
-    img = Image("res/img/greytest2.jpg")
     firstlogo = Image("res/img/firstlogo_grey.jpg")
-    height = int((float(targetWidth) / img.width) * img.height)
-    img = img.resize(targetWidth, height)
-    img = img.toGray()
     firstlogo = firstlogo.toGray()
 
-    start_time = int(round(time.time() * 1000))
-    kpts = matchKeyPoints(img, firstlogo, 100)
-    end_time = int(round(time.time() * 1000))
-    print("Took %d ms" % (end_time - start_time))
-
-    xPts = []
-    yPts = []
-    if kpts:
-        for kp in kpts:
-            xPts.append(kp.x)
-            yPts.append(kp.y)
-    avgX = int(numpy.average(xPts))
-    avgY = int(numpy.average(yPts))
-    print(avgX)
-    print(avgY)
-    img.drawCircle((avgY, avgX), 10, (255, 0, 0), 5)
-
-    img.applyLayers()
+    c = Camera(1, prop_set={"width": 640, "height": 480})
 
     while disp.isNotDone():
-        img.save(disp)
+        cImg = c.getImage()
+        cImg = cImg.toGray()
+        start_time = int(round(time.time() * 1000))
+        kpts = matchKeyPoints(cImg, firstlogo)
+        end_time = int(round(time.time() * 1000))
+        print("Took %d ms" % (end_time - start_time))
+
+        if kpts is not None:
+            if len(kpts) > 0:
+                xPts = []
+                yPts = []
+                if kpts:
+                    for kp in kpts:
+                        xPts.append(kp.x)
+                        yPts.append(kp.y)
+                avgX = int(numpy.average(xPts))
+                avgY = int(numpy.average(yPts))
+                cImg.drawCircle((avgY, avgX), 10, (255, 0, 0), 5)
+
+            cImg.mergedLayers()
+
+        cImg.save(disp)
 
 
 main()
