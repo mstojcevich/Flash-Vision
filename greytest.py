@@ -44,7 +44,7 @@ def matchKeyPoints(image, template, quality=0.00005):
         return None
     if template == None:
         return None
-    detector = cv2.SURF(1500, upright=True)  # First number bigger = more picky
+    detector = cv2.SURF(750, upright=1)  # First number bigger = more picky
     img = image.getNumpyCv2()
     template_img = template.getNumpyCv2()
 
@@ -53,12 +53,8 @@ def matchKeyPoints(image, template, quality=0.00005):
     end_time = int(round(time.time() * 1000))
     print("Image detect and compute took %s ms" % (end_time-start_time))
 
-    start_time = int(round(time.time() * 1000))
     tkp, td = detector.detectAndCompute(template_img, None)
-    end_time = int(round(time.time() * 1000))
-    print("Template detect and compute took %s ms" % (end_time-start_time))
 
-    start_time = int(round(time.time() * 1000))
     if skp is None or tkp is None or sd is None or td is None:
         return None
     idx, dist = getFLANNMatches(sd, td, mode)
@@ -75,8 +71,6 @@ def matchKeyPoints(image, template, quality=0.00005):
             sfs.append(KeyPoint(template, skp[i], sd, mode))
         else:
             break  # since sorted
-    end_time = int(round(time.time() * 1000))
-    print("Matching took %s ms" % (end_time-start_time))
 
     return sfs
 
@@ -89,11 +83,13 @@ def main():
     firstlogo = Image("res/img/firstlogo_grey.jpg")
     firstlogo = firstlogo.toGray()
 
-    c = Camera(prop_set={"width": 640, "height": 480})
+    c = Camera(1, prop_set={"width": 640, "height": 480})
 
     while disp.isNotDone():
         cImg = c.getImage()
         cImg = cImg.toGray()
+        third = cImg.height/3
+        cImg = cImg.crop(0, third, cImg.width, third)
         start_time = int(round(time.time() * 1000))
         kpts = matchKeyPoints(cImg, firstlogo)
         end_time = int(round(time.time() * 1000))
