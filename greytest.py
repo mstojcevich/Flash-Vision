@@ -1,6 +1,6 @@
 from SimpleCV import *
 import time
-
+import numpy
 
 def filter_matches(kp1, kp2, matches, ratio = 0.75):
     mkp1, mkp2 = [], []
@@ -15,6 +15,42 @@ def filter_matches(kp1, kp2, matches, ratio = 0.75):
     return p1, p2, kp_pairs
 
 
+def matchKeyPoints(image, template, quality=100):
+    mode = "SURF"
+    if not hasattr(cv2, "FeatureDetector_create"):
+        warnings.warn("OpenCV >= 2.4.3 required")
+        return None
+    if template == None:
+        return None
+    detector = cv2.FeatureDetector_create(mode)
+    descriptor = cv2.DescriptorExtractor_create(mode)
+    img = image.getNumpyCv2()
+    template_img = template.getNumpyCv2()
+
+    skp = detector.detect(img)
+    skp, sd = descriptor.compute(img, skp)
+
+    tkp = detector.detect(template_img)
+    tkp, td = descriptor.compute(template_img, tkp)
+
+    idx, dist = image._getFLANNMatches(sd, td)
+    dist = dist[:,0]/2500.0
+    dist = dist.reshape(-1,).tolist()
+    idx = idx.reshape(-1).tolist()
+    indices = range(len(dist))
+    indices.sort(key=lambda i: dist[i])
+    dist = [dist[i] for i in indices]
+    idx = [idx[i] for i in indices]
+    sfs = []
+    for i, dis in itertools.izip(idx, dist):
+        if dis < quality:
+            sfs.append(KeyPoint(template, skp[i], sd, mode))
+        else:
+            break #since sorted
+
+    return sfs
+
+
 disp = Display((640, 480))
 
 min_hue = 0
@@ -26,20 +62,28 @@ max_sat = 10
 
 target_aspect_ratio = 1.245
 
-img = Image("res/img/greytest.jpg")
+img = Image("res/img/greytest2.jpg")
 firstlogo = Image("res/img/firstlogo_grey.jpg")
-
-# Would it help to convert things to B&W?
+img = img.toGray()
+img = img.resize(640, 480)
+firstlogo = firstlogo.toGray()
 
 start_time = int(round(time.time() * 1000))
-keypoints = img.findKeypointMatch(firstlogo, 100.00, 0.3, 0.1)
+kpts = matchKeyPoints(img, firstlogo, 100)
 end_time = int(round(time.time() * 1000))
 print("Took %d ms" % (end_time-start_time))
 
-if keypoints:
-    keypoints[0].draw(width=4)
-    print("%s->%s, %s->%s" % (keypoints.x(), keypoints.x()+keypoints.width(),
-                              keypoints.y(), keypoints.y()+keypoints.height()))
+xPts = []
+yPts = []
+if kpts:
+    for kp in kpts:
+        xPts.append(kp.x)
+        yPts.append(kp.y)
+avgX = int(numpy.average(xPts))
+avgY = int(numpy.average(yPts))
+print(avgX)
+print(avgY)
+img.drawCircle((avgY, avgX), 10, (255, 0, 0), 5)
 
 img.applyLayers()
 
