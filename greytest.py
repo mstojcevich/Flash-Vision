@@ -1,6 +1,7 @@
 from SimpleCV import *
 import time
 import numpy
+import itertools
 
 
 def filter_matches(kp1, kp2, matches, ratio=0.75):
