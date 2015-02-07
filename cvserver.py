@@ -14,7 +14,7 @@ from threading import Thread
 import threading
 import subprocess
 
-cam_id = 0
+cam_id = 1
 
 x_offset = -1
 y_offset = -1
@@ -41,10 +41,23 @@ class ImgProcThread(Thread):
     def run(self):
         not_found_count = 0
         max_not_found = 3
+
+        s = None
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(2)  # Timeout @ 2 secs
+            s.connect(('169.254.65.94', 8622))
+        except socket.error:
+            s = None
+
         while True:
             input_img = self.camera.getImage()
             found = False
+
             def on_blob(b):
+                global found
+                global not_found_count
+
                 rect_width = b.minRectWidth()
                 rect_height = b.minRectHeight()
 
@@ -57,25 +70,28 @@ class ImgProcThread(Thread):
                 found = True
                 not_found_count = 0
 
-                try:
-                    to_send = "x=-1;y=%d;" % x_offset  # x is not yet implemented
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.connect(('169.254.65.94', 8622))
-                    s.send(str(len(to_send)).ljust(16))
-                    s.send(to_send)
-                    s.close()
-                except socket.error:
-                    pass
+                print("Sending a real value!")
+                if s is not None:
+                    try:
+                        to_send = "x=-1;y=%d;" % x_offset  # x is not yet implemented
+                        s.send(str(len(to_send)).ljust(16))
+                        s.send(to_send)
+                        s.close()
+                    except socket.error:
+                        pass
             if not found:
                 not_found_count += 1
             if not_found_count >= max_not_found:
                 # It's been missing for a bit now, let's send some arbitrary negative numbers!
                 to_send = "x=-10;y=-10"
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect(('169.254.65.94', 8622))
-                s.send(str(len(to_send)).ljust(16))
-                s.send(to_send)
-                s.close()
+                print("SENDING -10!")
+                if s is not None:
+                    try:
+                        s.send(str(len(to_send)).ljust(16))
+                        s.send(to_send)
+                        s.close()
+                    except socket.error:
+                        pass
 
             processed_img = imgproc.process_image(self.obj, input_img, self.config, on_blob)
             time.sleep(0.5)
@@ -112,7 +128,7 @@ class ServerThread(Thread):
 
                     # Encode as JPEG so we don't have to send so much
                     encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
-                    result, encoded_img = cv2.imencode('.jpg', img.getNumpy(), encode_param)
+                    result, encoded_img = cv2.imencode('.jpg', img.getNumpyCv2(), encode_param)
 
                     img_numpy = numpy.array(encoded_img)
                     img_str = img_numpy.tostring()
