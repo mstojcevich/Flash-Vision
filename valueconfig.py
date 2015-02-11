@@ -3,7 +3,7 @@ from os import path, makedirs
 
 
 # TODO Config is a misleading name, maybe change to something like values
-class Config:
+class ValueConfig:
     def __init__(self, config_path,
                  default_min_hue=0, default_min_sat=0, default_min_val=0,
                  default_max_hue=360, default_max_sat=0, default_max_val=0):

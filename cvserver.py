@@ -8,7 +8,7 @@ import os
 import time
 import imgproc
 import json
-from config import Config
+from valueconfig import ValueConfig
 from object import Obj
 from threading import Thread
 import threading
@@ -205,7 +205,7 @@ class ServerThread(Thread):
         connection.close()
 
 c = Camera(camera_index=cam_id)
-conf = Config("conf/values.json")
+conf = ValueConfig("conf/values.json")
 obj = Obj(38.1, 30.48)  # Values are measured from the yellow tote, TODO load from config file
 
 
