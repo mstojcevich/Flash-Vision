@@ -86,6 +86,8 @@ class ImageWindow(QtGui.QMainWindow):
         except socket.error:
             QtGui.QMessageBox.warning(self, 'Connection error', 'No server running on default IP')
 
+        self.grab_config()
+
         self.show()
 
         self.cam_props = self.setup_cam_prop_win()
@@ -153,6 +155,7 @@ class ImageWindow(QtGui.QMainWindow):
                 return o.__dict__
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(2)
             s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
             s.send('NEWCONFIG')  # We want to send a config
             s.recv(42)  # Enough to fit "READY"
@@ -167,23 +170,27 @@ class ImageWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.warning(self, 'Connection error', 'No server running on defined IP')
 
     def grab_config(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
-        s.send('GETCONFIG')  # We want to get a config
-        newconf_data = s.recv(1024)
-        s.close()
-        newconf = json.loads(newconf_data)
-        # Set config values
-        self.config.min_val = newconf.get('min_val')
-        self.config.max_val = newconf.get('max_val')
-        self.config.min_sat = newconf.get('min_sat')
-        self.config.max_sat = newconf.get('max_sat')
-        self.config.min_hue = newconf.get('min_hue')
-        self.config.max_hue = newconf.get('max_hue')
-        # We changed config values manually, so let's update the sliders
-        self.update_sliders()
-        # Do processing with the new values we got
-        self.process_image()
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(2)
+            s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
+            s.send('GETCONFIG')  # We want to get a config
+            newconf_data = s.recv(1024)
+            s.close()
+            newconf = json.loads(newconf_data)
+            # Set config values
+            self.config.min_val = newconf.get('min_val')
+            self.config.max_val = newconf.get('max_val')
+            self.config.min_sat = newconf.get('min_sat')
+            self.config.max_sat = newconf.get('max_sat')
+            self.config.min_hue = newconf.get('min_hue')
+            self.config.max_hue = newconf.get('max_hue')
+            # We changed config values manually, so let's update the sliders
+            self.update_sliders()
+            # Do processing with the new values we got
+            self.process_image()
+        except socket.error:
+            QtGui.QMessageBox.warning(self, 'Connection error', 'Failed to connect to server')
 
     def get_ip_addr(self):
         default_ip = '10.8.62.169'
