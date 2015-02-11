@@ -185,7 +185,7 @@ class ImageWindow(QtGui.QMainWindow):
         self.process_image()
 
     def get_ip_addr(self):
-        default_ip = 'localhost'
+        default_ip = '10.8.62.169'
         ip = str(self.ip_addr_box.text()).strip()
         if ' ' in ip or len(ip) is 0:  # If a space is in the input or the input is blank
             return default_ip
