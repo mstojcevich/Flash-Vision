@@ -206,7 +206,10 @@ class ServerThread(Thread):
 
 c = Camera(camera_index=cam_id)
 conf = ValueConfig("conf/values.json")
-obj = Obj(38.1, 30.48)  # Values are measured from the yellow tote, TODO load from config file
+try:
+    obj = Obj("conf/object.json")
+except Exception:
+    obj = None
 
 
 # TODO this is very likely camera specific!!!
