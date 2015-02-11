@@ -170,6 +170,7 @@ class ServerThread(Thread):
                     # TODO save changes to file
                     connection.send('SUCCESS')  # We successfully processed the new config
                     print('Got a new config')
+                    conf.save("conf/values.json")  # Save our new config
                 elif data == "GETCONFIG":
                     class ConfigEncoder(json.JSONEncoder):
                         def default(self, o):
@@ -205,7 +206,7 @@ class ServerThread(Thread):
         connection.close()
 
 c = Camera(camera_index=cam_id)
-conf = Config()  # TODO load config from file
+conf = Config("conf/values.json")  # TODO load config from file
 obj = Obj(38.1, 30.48)  # Values are measured from the yellow tote, TODO load from config file
 
 
