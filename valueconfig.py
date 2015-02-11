@@ -20,7 +20,6 @@ class ValueConfig:
         self.max_val = default_max_val
 
         if path.isfile(config_path):  # File exists, load what it has
-            print(config_path)
             with open(config_path, 'r') as config_file:
                 json_data = config_file.read()
                 parsed_json = json.loads(json_data)
