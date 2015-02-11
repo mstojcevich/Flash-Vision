@@ -14,7 +14,7 @@ from threading import Thread
 import threading
 import subprocess
 
-cam_id = 1
+cam_id = 0
 
 x_offset = -1
 y_offset = -1
@@ -39,6 +39,10 @@ class ImgProcThread(Thread):
         self.config = config
 
     def run(self):
+        global found
+        global not_found_count
+        global s
+        global lastConnectRetry
         not_found_count = 0
         max_not_found = 3
 
@@ -50,6 +54,8 @@ class ImgProcThread(Thread):
         except socket.error:
             s = None
 
+
+        lastConnectRetry = 0
         while True:
             input_img = self.camera.getImage()
             found = False
@@ -57,6 +63,8 @@ class ImgProcThread(Thread):
             def on_blob(b):
                 global found
                 global not_found_count
+                global s
+                global lastConnectRetry
 
                 rect_width = b.minRectWidth()
                 rect_height = b.minRectHeight()
@@ -78,7 +86,17 @@ class ImgProcThread(Thread):
                         s.send(to_send)
                         s.close()
                     except socket.error:
-                        pass
+                        s = None  # So we will try to reconnect later
+                elif int(round(time.time() * 1000)) - lastConnectRetry > 30000:  # If we haven't retried for 30 seconds
+                    print("Trying to reconnect to the rio.")
+                    lastConnectRetry = int(round(time.time() * 1000))
+                    try:
+                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        s.settimeout(2)  # Timeout @ 2 secs
+                        s.connect(('169.254.65.94', 8622))
+                    except socket.error:
+                        s = None
+
             if not found:
                 not_found_count += 1
             if not_found_count >= max_not_found:

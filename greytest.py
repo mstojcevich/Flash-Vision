@@ -78,12 +78,10 @@ def matchKeyPoints(image, template, quality=0.00005):
 def main():
     disp = Display((640, 480))
 
-    targetWidth = 640
-
     firstlogo = Image("res/img/firstlogo_grey.jpg")
     firstlogo = firstlogo.toGray()
 
-    c = Camera(1, prop_set={"width": 640, "height": 480})
+    c = Camera(0, prop_set={"width": 640, "height": 480})
 
     while disp.isNotDone():
         cImg = c.getImage()
