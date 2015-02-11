@@ -12,8 +12,6 @@ def process_image(obj, img, config, each_blob=None):
     :return: Mask with candidates
     """
     hsv_image = img.toHSV()
-    print([config.min_hue, config.min_sat, config.min_val])
-    print([config.max_hue, config.max_sat, config.max_val])
     segmented = Image(cv2.inRange(hsv_image.rotate90().getNumpyCv2(),
                                   numpy.array([config.min_hue, config.min_sat, config.min_val]),
                                   numpy.array([config.max_hue, config.max_sat, config.max_val])))
