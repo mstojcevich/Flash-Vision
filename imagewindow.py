@@ -207,44 +207,46 @@ class ImageWindow(QtGui.QMainWindow):
         grid = QtGui.QVBoxLayout()
         prop_win.setLayout(grid)
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
-        s.send('GETCAMPROPS')  # We want to get a config
-        length = int(s.recv(16))
-        camprop_data = receive_all(s, length)
-        s.close()
-
-        int_prop_list = camprop.parse_int_props(camprop_data)
-        cam_prop_num = 0
-        sheight = 0
-        for prop in int_prop_list:
-            slider = QtGui.QSlider(orientation=QtCore.Qt.Horizontal)
-            def update_value(value):
-                for p in int_prop_list:
-                    if p.name == self.sender().objectName():
-                        p.new_value = value
-            prop_win.connect(slider, QtCore.SIGNAL("valueChanged(int)"), update_value)
-            slider.setMinimum(prop.min)
-            slider.setMaximum(prop.max)
-            slider.setSingleStep(prop.step)
-            slider.setValue(prop.value)
-            slider.setToolTip(prop.name)
-            slider.setObjectName(prop.name)
-            y = cam_prop_num*(slider.height()-10)
-            slider.move(0, y)
-            cam_prop_num += 1
-            label = QtGui.QLabel()
-            label.setText(prop.name)
-            label.move(slider.width(), y)
-            sheight = slider.height()
-            grid.addWidget(label)
-            grid.addWidget(slider)
-        y = cam_prop_num*(sheight-10)
-        btn = QtGui.QPushButton(parent=prop_win)
-        btn.setText('Send')
-        btn.clicked.connect(self.send_changed_props)
-        btn.move(0, y)
-        grid.addWidget(btn)
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
+            s.send('GETCAMPROPS')  # We want to get a config
+            length = int(s.recv(16))
+            camprop_data = receive_all(s, length)
+            s.close()
+            int_prop_list = camprop.parse_int_props(camprop_data)
+            cam_prop_num = 0
+            sheight = 0
+            for prop in int_prop_list:
+                slider = QtGui.QSlider(orientation=QtCore.Qt.Horizontal)
+                def update_value(value):
+                    for p in int_prop_list:
+                        if p.name == self.sender().objectName():
+                            p.new_value = value
+                prop_win.connect(slider, QtCore.SIGNAL("valueChanged(int)"), update_value)
+                slider.setMinimum(prop.min)
+                slider.setMaximum(prop.max)
+                slider.setSingleStep(prop.step)
+                slider.setValue(prop.value)
+                slider.setToolTip(prop.name)
+                slider.setObjectName(prop.name)
+                y = cam_prop_num*(slider.height()-10)
+                slider.move(0, y)
+                cam_prop_num += 1
+                label = QtGui.QLabel()
+                label.setText(prop.name)
+                label.move(slider.width(), y)
+                sheight = slider.height()
+                grid.addWidget(label)
+                grid.addWidget(slider)
+                y = cam_prop_num*(sheight-10)
+                btn = QtGui.QPushButton(parent=prop_win)
+                btn.setText('Send')
+                btn.clicked.connect(self.send_changed_props)
+                btn.move(0, y)
+                grid.addWidget(btn)
+        except socket.error:
+            int_prop_list = []
 
         prop_win.setWindowTitle('Camera Properties')
         prop_win.show()
