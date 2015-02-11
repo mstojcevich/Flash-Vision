@@ -14,6 +14,12 @@ from threading import Thread
 import threading
 import subprocess
 
+ROBORIO_IP = '10.8.61.2'
+ROBORIO_LISTEN_PORT = 8622
+
+CONFIG_LISTEN_HOST = ''
+CONFIG_LISTEN_PORT = 8621
+
 cam_id = 0
 
 x_offset = -1
@@ -50,7 +56,7 @@ class ImgProcThread(Thread):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(2)  # Timeout @ 2 secs
-            s.connect(('169.254.65.94', 8622))
+            s.connect((ROBORIO_IP, ROBORIO_LISTEN_PORT))
         except socket.error:
             s = None
 
@@ -93,7 +99,7 @@ class ImgProcThread(Thread):
                     try:
                         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         s.settimeout(2)  # Timeout @ 2 secs
-                        s.connect(('169.254.65.94', 8622))
+                        s.connect((ROBORIO_IP, ROBORIO_LISTEN_PORT))
                     except socket.error:
                         s = None
 
@@ -121,11 +127,10 @@ class ServerThread(Thread):
         self.camera = camera
 
     def run(self):
-        port = 8621
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind(('localhost', port))
+        server_socket.bind((CONFIG_LISTEN_HOST, CONFIG_LISTEN_PORT))
         server_socket.listen(1)  # max 1 connection - we only have one camera, so we can't send images to two people at once
-        print('Listening on port %s' % port)
+        print('Listening on port %s' % CONFIG_LISTEN_PORT)
         connection = None
         while True:
             connection, address = server_socket.accept()
