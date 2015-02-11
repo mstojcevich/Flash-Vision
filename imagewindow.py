@@ -92,6 +92,7 @@ class ImageWindow(QtGui.QMainWindow):
 
     def get_new_raw(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(2)
         s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
         s.send('GETIMG')  # We want a raw image from the camera
         length = receive_all(s, 16)
@@ -209,6 +210,7 @@ class ImageWindow(QtGui.QMainWindow):
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(2)
             s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
             s.send('GETCAMPROPS')  # We want to get a config
             length = int(s.recv(16))
@@ -255,6 +257,7 @@ class ImageWindow(QtGui.QMainWindow):
 
     def send_changed_props(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(2)
         s.connect((self.get_ip_addr(), 8621))  # TODO allow user-defined port (maybe)
         s.send("STARTV4LPROPS")
         time.sleep(1)  # Sleep for 1 second so that it gets out start message
