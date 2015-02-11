@@ -6,7 +6,7 @@ from os import path, makedirs
 class ValueConfig:
     def __init__(self, config_path,
                  default_min_hue=0, default_min_sat=0, default_min_val=0,
-                 default_max_hue=360, default_max_sat=0, default_max_val=0):
+                 default_max_hue=360, default_max_sat=255, default_max_val=255):
         """
         Creates a new config from a json config file.
         If the file doesn't exist, makes a default config and create the file.

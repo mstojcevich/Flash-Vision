@@ -9,6 +9,8 @@ from valueconfig import ValueConfig
 
 app = QtGui.QApplication(sys.argv)
 
+# TODO value config on client reads maxSat and maxVal as 0 even though server reads the right ones. wat.
+
 obj = Obj("conf/object.json")  # TODO maybe always send the client's to the server so there's no confusing mismatch
 conf = ValueConfig("config/values.json")  # TODO see above ^
 img_window = ImageWindow(obj, conf)
