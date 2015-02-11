@@ -167,7 +167,6 @@ class ServerThread(Thread):
                     conf.max_sat = newconf.get('max_sat')
                     conf.min_hue = newconf.get('min_hue')
                     conf.max_hue = newconf.get('max_hue')
-                    # TODO save changes to file
                     connection.send('SUCCESS')  # We successfully processed the new config
                     print('Got a new config')
                     conf.save("conf/values.json")  # Save our new config
@@ -206,7 +205,7 @@ class ServerThread(Thread):
         connection.close()
 
 c = Camera(camera_index=cam_id)
-conf = Config("conf/values.json")  # TODO load config from file
+conf = Config("conf/values.json")
 obj = Obj(38.1, 30.48)  # Values are measured from the yellow tote, TODO load from config file
 
 
