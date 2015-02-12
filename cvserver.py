@@ -57,7 +57,8 @@ class ImgProcThread(Thread):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(2)  # Timeout @ 2 secs
             s.connect((ROBORIO_IP, ROBORIO_LISTEN_PORT))
-        except socket.error:
+        except socket.error as err:
+            print("Failed to connect to RoboRio: %s" % err)
             s = None
 
 
@@ -91,7 +92,8 @@ class ImgProcThread(Thread):
                         s.send(str(len(to_send)).ljust(16))
                         s.send(to_send)
                         s.close()
-                    except socket.error:
+                    except socket.error as err:
+                        print("Failed to connect to RoboRio: %s" % err)
                         s = None  # So we will try to reconnect later
                 elif int(round(time.time() * 1000)) - lastConnectRetry > 30000:  # If we haven't retried for 30 seconds
                     print("Trying to reconnect to the rio.")
@@ -100,7 +102,8 @@ class ImgProcThread(Thread):
                         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         s.settimeout(2)  # Timeout @ 2 secs
                         s.connect((ROBORIO_IP, ROBORIO_LISTEN_PORT))
-                    except socket.error:
+                    except socket.error as err:
+                        print("Failed to connect to RoboRio: %s" % err)
                         s = None
 
             if not found:
@@ -114,8 +117,9 @@ class ImgProcThread(Thread):
                         s.send(str(len(to_send)).ljust(16))
                         s.send(to_send)
                         s.close()
-                    except socket.error:
-                        pass
+                    except socket.error as err:
+                        print("Failed to connect to RoboRio: %s" % err)
+                        s = None
 
             processed_img = imgproc.process_image(self.obj, input_img, self.config, on_blob)
             time.sleep(0.5)
