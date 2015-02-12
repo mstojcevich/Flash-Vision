@@ -14,7 +14,7 @@ from threading import Thread
 import threading
 import subprocess
 
-ROBORIO_IP = '10.8.61.2'
+ROBORIO_IP = '10.8.62.2'
 ROBORIO_LISTEN_PORT = 8622
 
 CONFIG_LISTEN_HOST = ''
