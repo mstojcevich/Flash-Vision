@@ -115,7 +115,7 @@ class ImageWindow(QtGui.QMainWindow):
         self.process_image()
 
     def process_image(self):
-        procsvimg = imgproc.process_image(self.obj, self.raw_img, self.config)
+        procsvimg = imgproc.process_image(self.obj, self.raw_img, self.config, None, False)
         pixmap = scv_to_pixmap(procsvimg, self.raw_image_label.width(), self.raw_image_label.height())
         self.processed_image_label.setPixmap(pixmap)
 

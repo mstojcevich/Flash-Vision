@@ -14,16 +14,29 @@ from threading import Thread
 import threading
 import subprocess
 
+
+wait_for_rio = 0
+look_for_tote = 1
+
+WAIT_BETWEEN_SEND_TIME = 0.5 # Change to 0 for production
+
 ROBORIO_IP = '10.8.62.2'
 ROBORIO_LISTEN_PORT = 8622
 
 CONFIG_LISTEN_HOST = ''
 CONFIG_LISTEN_PORT = 8621
 
+FOCAL_LENGTH = 636.0
+
 cam_id = 0
 
 x_offset = -1
 y_offset = -1
+
+global mode
+mode = wait_for_rio
+
+NO_RIO = True
 
 
 # Really hacky way to detect if the camera is connected. Always returns true on Windows and OSX.
@@ -49,80 +62,99 @@ class ImgProcThread(Thread):
         global not_found_count
         global s
         global lastConnectRetry
+        global mode
         not_found_count = 0
         max_not_found = 3
 
-        s = None
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(2)  # Timeout @ 2 secs
-            s.connect((ROBORIO_IP, ROBORIO_LISTEN_PORT))
-        except socket.error as err:
-            print("Failed to connect to RoboRio: %s" % err)
+        if NO_RIO:
             s = None
-
+            mode = look_for_tote
+        else:
+            s = None
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(0.5)  # Timeout @ 0.5 secs
+                s.connect((ROBORIO_IP, ROBORIO_LISTEN_PORT))
+                mode = look_for_tote
+            except socket.error as err:
+                mode = wait_for_rio
+                print("Failed to connect to RoboRio: %s" % err)
+                s = None
 
         lastConnectRetry = 0
         while True:
-            input_img = self.camera.getImage()
-            found = False
+            if mode is wait_for_rio and not NO_RIO:
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(0.5)  # Timeout @ 0.5 secs
+                    s.connect((ROBORIO_IP, ROBORIO_LISTEN_PORT))
+                    mode = look_for_tote
+                except socket.error as err:
+                    print("Failed to connect to RoboRio: %s" % err)
+                    s = None
+                    time.sleep(0.2)
+            elif mode is look_for_tote:
+                input_img = self.camera.getImage()
+                found = False
 
-            def on_blob(b):
-                global found
-                global not_found_count
-                global s
-                global lastConnectRetry
+                def on_blob(b):
+                    global found
+                    global not_found_count
+                    global s
+                    global lastConnectRetry
+                    global mode
 
-                rect_width = b.minRectWidth()
-                rect_height = b.minRectHeight()
+                    rect_width = b.minRectWidth()
+                    rect_height = b.minRectHeight()
+                    max_side = max(rect_width, rect_height)
+                    min_side = min(rect_width, rect_height)
+                    rect_width = max_side
+                    rect_height = min_side
 
-                rect_ctr_x = b.minRectX()
+                    rect_ctr_x = b.minRectX()
+                    rect_ctr_y = b.minRectY()
 
-                mrX = rect_ctr_x-rect_width/2
-                mrY = b.minRectY()-rect_height/2
-                # px * (px/cm) = cm
-                x_offset = int(round((rect_ctr_x - input_img.width/2) * (obj.width / rect_width)))
-                found = True
-                not_found_count = 0
+                    mrX = rect_ctr_x-rect_width/2
+                    mrY = b.minRectY()-rect_height/2
+                    # px * (px/cm) = cm
+                    print("img width,height %d,%d" % (input_img.width, input_img.height))
+                    x_offset = int(round((rect_ctr_x - input_img.width/2) * (obj.width / rect_width)))
+                    # TODO the server things x is y and y is x and wtf
+                    y_offset = int(obj.width*FOCAL_LENGTH/rect_width)
+                    found = True
+                    not_found_count = 0
 
-                print("Sending a real value!")
-                if s is not None:
-                    try:
-                        to_send = "x=-1;y=%d;" % x_offset  # x is not yet implemented
-                        s.send(str(len(to_send)).ljust(16))
-                        s.send(to_send)
-                        s.close()
-                    except socket.error as err:
-                        print("Failed to connect to RoboRio: %s" % err)
-                        s = None  # So we will try to reconnect later
-                elif int(round(time.time() * 1000)) - lastConnectRetry > 30000:  # If we haven't retried for 30 seconds
-                    print("Trying to reconnect to the rio.")
-                    lastConnectRetry = int(round(time.time() * 1000))
-                    try:
-                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        s.settimeout(2)  # Timeout @ 2 secs
-                        s.connect((ROBORIO_IP, ROBORIO_LISTEN_PORT))
-                    except socket.error as err:
-                        print("Failed to connect to RoboRio: %s" % err)
-                        s = None
+                    print("Trying to send a real value")
+                    if s is not None or NO_RIO:
+                        print("We're really sending it")
+                        try:
+                            to_send = "x=%d;y=%d;" % (-y_offset, x_offset)  # x is not yet implemented
+                            print(to_send)
+                            if not NO_RIO:
+                                s.send(str(len(to_send)).ljust(16))
+                                s.send(to_send)
+                        except socket.error as err:
+                            print("Failed to connect to RoboRio: %s" % err)
+                            mode = wait_for_rio
+                            s = None  # The socket's bad now
 
-            if not found:
-                not_found_count += 1
-            if not_found_count >= max_not_found:
-                # It's been missing for a bit now, let's send some arbitrary negative numbers!
-                to_send = "x=-10;y=-10"
-                print("SENDING -10!")
-                if s is not None:
-                    try:
-                        s.send(str(len(to_send)).ljust(16))
-                        s.send(to_send)
-                        s.close()
-                    except socket.error as err:
-                        print("Failed to connect to RoboRio: %s" % err)
-                        s = None
+                if not found:
+                    not_found_count += 1
+                if not_found_count >= max_not_found:
+                    # It's been missing for a bit now, let's send some arbitrary negative numbers!
+                    to_send = "x=-10;y=-10"
+                    print("SENDING -10! WE DIDN'T SEE ANYTHING")
+                    if s is not None:
+                        try:
+                            s.send(str(len(to_send)).ljust(16))
+                            s.send(to_send)
+                        except socket.error as err:
+                            print("Failed to connect to RoboRio: %s" % err)
+                            mode = wait_for_rio
+                            s = None
 
-            processed_img = imgproc.process_image(self.obj, input_img, self.config, on_blob)
-            time.sleep(0.5)
+                processed_img = imgproc.process_image(self.obj, input_img, self.config, on_blob, False)
+                time.sleep(WAIT_BETWEEN_SEND_TIME)
 
 
 class ServerThread(Thread):
